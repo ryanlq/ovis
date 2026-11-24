@@ -1,7 +1,7 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { RECEIPT_RESUME_ID } from "../shared/receipt-resume.ts";
 import { authenticatedWebSocket } from "./remote-websocket.ts";
-import { OUTPUT_HARD_BYTES, OUTPUT_HIGH_BYTES, OUTPUT_STALL_MS } from "./output-window.ts";
+import { OUTPUT_HARD_BYTES, OUTPUT_HIGH_BYTES } from "./output-window.ts";
 import { OUTPUT_STALLED_CLOSE_CODE } from "../shared/terminal-flow.ts";
 import type { MachineManager } from "./machines.ts";
 import type { ServerMessage, SessionSnapshot } from "../shared/protocol.ts";
@@ -36,11 +36,17 @@ interface RelayClient {
 
 /**
  * The relay's backstop against its own sockets backing up, with this PC's rule (reconcileOutput):
- * blocked only while OUTPUT_HIGH_BYTES or more is queued, closed after OUTPUT_STALL_MS of that.
+ * blocked only while OUTPUT_HIGH_BYTES or more is queued, closed after RELAY_STALL_MS of that.
  * A slow phone link keeps a few KB queued in userspace while output still moves, so any byte
  * must not count. The end-to-end ACK window is enforced by the remote bridge. A stall closes
  * with 4008 like this PC's: an overload is never auto-replayed. Returns the close code, or 0.
+ *
+ * RELAY_STALL_MS is wider than this PC's OUTPUT_STALL_MS: a phone on WAN drains a queue at link
+ * speed, where seconds of backlog are congestion, not a dead reader. The hard cap
+ * (over OUTPUT_HARD_BYTES at once) still closes at once.
  */
+export const RELAY_STALL_MS = 8_000;
+
 export class RelayStallClock {
   private blockedAt: number | null = null;
 
@@ -48,7 +54,7 @@ export class RelayStallClock {
     if (buffered > OUTPUT_HARD_BYTES) return OUTPUT_STALLED_CLOSE_CODE;
     if (buffered < OUTPUT_HIGH_BYTES) this.blockedAt = null;
     else if (this.blockedAt === null) this.blockedAt = now;
-    return this.blockedAt !== null && now - this.blockedAt >= OUTPUT_STALL_MS ? OUTPUT_STALLED_CLOSE_CODE : 0;
+    return this.blockedAt !== null && now - this.blockedAt >= RELAY_STALL_MS ? OUTPUT_STALLED_CLOSE_CODE : 0;
   }
 }
 

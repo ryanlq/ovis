@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type { Server, ServerWebSocket } from "bun";
 import { MachineRelay, RelayReceiptIds, RelayStallClock, upstreamCloseCode } from "./machine-relay.ts";
 import type { MachineManager } from "./machines.ts";
-import { OUTPUT_HARD_BYTES, OUTPUT_HIGH_BYTES, OUTPUT_STALL_MS } from "./output-window.ts";
+import { OUTPUT_HARD_BYTES, OUTPUT_HIGH_BYTES } from "./output-window.ts";
+import { RELAY_STALL_MS } from "./machine-relay.ts";
 import { OUTPUT_STALLED_CLOSE_CODE } from "../shared/terminal-flow.ts";
 import { agentRowTokens, snapshotWithoutHiddenTokens } from "./herdr-sidebar.ts";
 import { RECEIPT_RESUME_ID } from "../shared/receipt-resume.ts";
@@ -25,8 +26,8 @@ describe("RelayStallClock", () => {
   test("a stall at the high-water mark for 2 s closes with the explicit 4008, never a reconnect code", () => {
     const clock = new RelayStallClock();
     expect(clock.sample(OUTPUT_HIGH_BYTES, 0)).toBe(0);
-    expect(clock.sample(OUTPUT_HIGH_BYTES + 1, OUTPUT_STALL_MS - 1)).toBe(0);
-    expect(clock.sample(OUTPUT_HIGH_BYTES + 1, OUTPUT_STALL_MS)).toBe(OUTPUT_STALLED_CLOSE_CODE);
+    expect(clock.sample(OUTPUT_HIGH_BYTES + 1, RELAY_STALL_MS - 1)).toBe(0);
+    expect(clock.sample(OUTPUT_HIGH_BYTES + 1, RELAY_STALL_MS)).toBe(OUTPUT_STALLED_CLOSE_CODE);
   });
 
   test("like this PC's rule, one sample below the high-water mark clears the clock", () => {
@@ -34,8 +35,8 @@ describe("RelayStallClock", () => {
     expect(clock.sample(OUTPUT_HIGH_BYTES, 0)).toBe(0);
     expect(clock.sample(OUTPUT_HIGH_BYTES - 1, 100)).toBe(0);
     expect(clock.sample(OUTPUT_HIGH_BYTES, 200)).toBe(0);
-    expect(clock.sample(OUTPUT_HIGH_BYTES, 200 + OUTPUT_STALL_MS - 1)).toBe(0);
-    expect(clock.sample(OUTPUT_HIGH_BYTES, 200 + OUTPUT_STALL_MS)).toBe(OUTPUT_STALLED_CLOSE_CODE);
+    expect(clock.sample(OUTPUT_HIGH_BYTES, 200 + RELAY_STALL_MS - 1)).toBe(0);
+    expect(clock.sample(OUTPUT_HIGH_BYTES, 200 + RELAY_STALL_MS)).toBe(OUTPUT_STALLED_CLOSE_CODE);
   });
 
   test("buffering past the hard budget still closes at once as an overflow", () => {
@@ -151,9 +152,9 @@ describe("MachineRelay stall timer", () => {
 
   test("the high-water mark queued at the phone for the stall window closes with 4008", async () => {
     const { relay, closes } = await relayWithQueue(OUTPUT_HIGH_BYTES);
-    for (let at = 0; at < OUTPUT_STALL_MS; at += 100) relay.tick(at);
+    for (let at = 0; at < RELAY_STALL_MS; at += 100) relay.tick(at);
     expect(closes).toEqual([]);
-    relay.tick(OUTPUT_STALL_MS);
+    relay.tick(RELAY_STALL_MS);
     expect(closes).toEqual([OUTPUT_STALLED_CLOSE_CODE]);
   });
 });
@@ -175,9 +176,9 @@ describe("MachineRelay stall timer behind a large frame (#2573)", () => {
       for (let at = 0; at <= 40_000; at += 100) relay.tick(at);
       expect(closes).toEqual([]);
       large = 0;
-      for (let at = 40_100; at < 40_100 + OUTPUT_STALL_MS; at += 100) relay.tick(at);
+      for (let at = 40_100; at < 40_100 + RELAY_STALL_MS; at += 100) relay.tick(at);
       expect(closes).toEqual([]);
-      relay.tick(40_100 + OUTPUT_STALL_MS);
+      relay.tick(40_100 + RELAY_STALL_MS);
       expect(closes).toEqual([OUTPUT_STALLED_CLOSE_CODE]);
     } finally {
       relay.close();
