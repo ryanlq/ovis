@@ -23,7 +23,12 @@ const USER_LINE = /^❯\s?/;
  * footers, turn metadata (✳ Brewed for…, ※ recap).
  */
 const STATUS_LINE =
-  /^(?:\[[^\]]*\]\s*│|⏵|⣾|█|Context\s|Usage\s|[·•]\s*\d+\s*shell|✳|※)/;
+  /^(?:\[[^\]]*\]\s*│|⏵|⣾|█|Context\s|Usage\s|[·•]\s*\d+\s*shell|✳|※|✻)/;
+/** A tool call the TUI prints (Claude Code `⏺ Bash(…)`), and the indented result lines under it. */
+const TOOL_LINE = /^⏺\s+[\w\/-]+\s*\(/;
+const TOOL_RESULT_LINE = /^\s*⎿/;
+/** A fenced code block's own ``` lines, wherever the TUI or the agent's answer drew them. */
+const FENCE = /^\s*```/;
 
 export function toTranscriptMessages(text: string): TranscriptMessage[] {
   const messages: TranscriptMessage[] = [];
@@ -33,16 +38,24 @@ export function toTranscriptMessages(text: string): TranscriptMessage[] {
     if (pending === null) return;
     // agent output is split on blank lines: a conversation tail without ❯
     // separators would otherwise render as one giant log panel instead of
-    // chat-sized bubbles (chrome stays grouped — it has no blank lines)
+    // chat-sized bubbles (chrome stays grouped — it has no blank lines).
+    // A ``` fence suspends the split: code blocks keep their own blank lines,
+    // or a fenced answer arrives as shards instead of one block.
     if (pending.role === "agent") {
       let chunk: string[] = [];
+      let fenced = false;
       const emit = (): void => {
         const body = chunk.join("\n").replace(/^\n+|\n+$/g, "");
         if (body.length > 0) messages.push({ role: "agent", text: body });
         chunk = [];
       };
       for (const line of pending.lines) {
-        if (line.trim().length === 0) emit();
+        if (FENCE.test(line)) {
+          chunk.push(line);
+          fenced = !fenced;
+          continue;
+        }
+        if (line.trim().length === 0 && !fenced) emit();
         else chunk.push(line);
       }
       emit();
@@ -65,7 +78,8 @@ export function toTranscriptMessages(text: string): TranscriptMessage[] {
       if (prompt.length > 0) messages.push({ role: "user", text: prompt });
       continue;
     }
-    const role: TranscriptRole = STATUS_LINE.test(line.trim()) ? "status" : "agent";
+    const classified = TOOL_LINE.test(line.trim()) || TOOL_RESULT_LINE.test(line);
+    const role: TranscriptRole = classified || STATUS_LINE.test(line.trim()) ? "status" : "agent";
     if (pending !== null && pending.role === role) {
       pending.lines.push(line);
       continue;

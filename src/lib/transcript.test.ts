@@ -51,6 +51,29 @@ describe("toTranscriptMessages", () => {
     ]);
   });
 
+  it("keeps a fenced code block in one bubble across its own blank lines", () => {
+    const messages = toTranscriptMessages("before\n\n```python\ndef f():\n\n    pass\n```\n\nafter");
+    expect(messages).toEqual([
+      { role: "agent", text: "before" },
+      { role: "agent", text: "```python\ndef f():\n\n    pass\n```" },
+      { role: "agent", text: "after" },
+    ]);
+  });
+
+  it("dims tool calls and their result lines as status, not bubbles", () => {
+    const messages = toTranscriptMessages("⏺ Bash(ls -la)\n  ⎿  total 42\n\nthe answer itself");
+    expect(messages).toEqual([
+      { role: "status", text: "⏺ Bash(ls -la)\n  ⎿  total 42" },
+      { role: "agent", text: "the answer itself" },
+    ]);
+  });
+
+  it("dims a thinking banner as status", () => {
+    const messages = toTranscriptMessages("✻ Thinking…\n\nprose");
+    expect(messages[0]).toEqual({ role: "status", text: "✻ Thinking…" });
+    expect(messages[1]).toEqual({ role: "agent", text: "prose" });
+  });
+
   it("returns nothing for an empty read", () => {
     expect(toTranscriptMessages("")).toEqual([]);
     expect(toTranscriptMessages("\n\n")).toEqual([]);
