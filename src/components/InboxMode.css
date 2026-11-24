@@ -227,7 +227,7 @@
   }
 
   .app.is-inbox-wide.is-inbox-terminal .pane-column {
-    padding-bottom: calc(var(--header-h) + var(--status-bar-h) - var(--inbox-zone-h));
+    padding-bottom: calc(var(--header-h) - var(--inbox-zone-h));
   }
 }
 

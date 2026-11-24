@@ -287,6 +287,9 @@ export function Composer({
   const atSkills = useMemo(() => atSkillCommands(commands), [commands]);
   const trigger = useMemo(() => activeTrigger(text, caret, { skills: syntax.skillTriggers.includes("$"), namespaced: syntax.namespaced, atSkills: atSkills.length > 0 }), [atSkills, syntax, caret, text]);
   const terminalTyped = useMemo(() => typedTerminalCommand(commands, text), [commands, text]);
+  /** the agent's `/model` opens a dialog the chat can draw (pi, Claude Code, Codex): the pill's name presses it */
+  const modelSwitch = useMemo(() => commands.some((command) => (command.trigger ?? "/") === "/" && command.name.toLocaleLowerCase() === "model"
+    && (command.forms ?? []).some((form) => form.match === "bare" && form.interaction === "dialog")), [commands]);
   const uploading = attachments.some((attachment) => attachment.state === "uploading");
   const roomless = attachments.find((attachment) => attachment.state === "no-room");
   const agentLabel = agentDisplayLabel(agent);
@@ -899,6 +902,11 @@ export function Composer({
   }, [connected, draftKey, sending]);
   const sendQuick = useCallback((reply: string) => sendBeside(() => onSend(reply)), [onSend, sendBeside]);
   const sendDraft = useCallback((draft: string) => sendBeside(() => onSend(draft, draft), draft), [onSend, sendBeside]);
+  /** the model pill's press: the agent's own `/model`, so its selector arrives as the chat's dialog card and the draft stays put */
+  const switchModel = useCallback(() => {
+    if (!connected || viewOnly) return;
+    sendBeside(() => onSend("/model"));
+  }, [connected, onSend, sendBeside, viewOnly]);
 
   /**
    * Paste and send (#2493): this device's clipboard is read on the press, never the PC's, and its text goes into the
@@ -1391,6 +1399,24 @@ export function Composer({
           tabIndex={-1}
           aria-hidden="true"
         />
+        {/* the strip, inside the card under the text (t3code's composer context strip): the pane's working folder and
+            its branch, each drawn only when the caller passes it. It only names them; nothing in it is pressed */}
+        {strip !== null && (
+          <div ref={stripRef} className="composer-strip">
+            {strip.folder !== null && <span className="composer-strip-item composer-strip-folder" title={strip.path ?? undefined}>
+              {worktree ? <FolderGit2 aria-hidden="true" /> : <Folder aria-hidden="true" />}
+              <span className="visually-hidden">{t("Working folder")}: </span>
+              <span className="composer-strip-text composer-strip-folder-name">{strip.folder}</span>
+              {strip.path !== null && <span className="composer-strip-text composer-strip-path">{strip.path}</span>}
+              {worktree && <span className="composer-strip-kind">{t("Worktree")}</span>}
+            </span>}
+            {strip.branch !== null && <span className="composer-strip-item composer-strip-branch" title={strip.branch}>
+              <GitBranch aria-hidden="true" />
+              <span className="visually-hidden">{t("Branch")}: </span>
+              <span className="composer-strip-text">{strip.branch}</span>
+            </span>}
+          </div>
+        )}
 
         <div className="composer-controls composer-controls-left">
           <input
@@ -1445,14 +1471,18 @@ export function Composer({
             <span className="composer-agent-label visually-hidden">{agentLabel}</span>
             <span className="composer-status-separator visually-hidden" aria-hidden="true">·</span>
             <strong className="visually-hidden">{t(composerStatusWord(shownStatus))}</strong>
-            {/* the mark, the model, the level and the context ring as one quiet pill. It only shows: no role,
-                no focus, nothing to press but the ring inside it. A pane that names no model draws no pill
-                (.is-bare): the mark, a level if it has one, and the ring stand in the row as they are */}
+            {/* the mark, the model, the level and the context ring as one quiet pill. The model's name is the one
+                press when the agent's `/model` opens a dialog the chat draws; otherwise it only shows. A pane that
+                names no model draws no pill (.is-bare): the mark, a level if it has one, and the ring stand in as they are */}
             <span className={`composer-pill${metadata?.model ? "" : " is-bare"}`}>
               {agent && <AgentMark agent={agent} size={14} />}
               {modelShown && <span className="composer-model-info" aria-label={t("Model and reasoning")}>
                 {/* a name only for an id modelLabel can name for certain; any other id is drawn as received, in the identifier face */}
-                <span className={`composer-model${model ? model.named ? "" : " is-id" : " is-none"}`} title={metadata?.model ?? t("Model not available")}>{model?.text ?? t("Model —")}</span>
+                {model !== null && modelSwitch && connected && !viewOnly
+                  ? <button type="button" className={`composer-model is-switch${model.named ? "" : " is-id"}`}
+                      aria-label={t("Select model (currently {model})", { model: model.text })} title={t("Select model (currently {model})", { model: model.text })}
+                      onClick={switchModel}>{model.text}</button>
+                  : <span className={`composer-model${model ? model.named ? "" : " is-id" : " is-none"}`} title={metadata?.model ?? t("Model not available")}>{model?.text ?? t("Model —")}</span>}
                 {/* behind a name the id as received is still read; a touch cannot reach the title */}
                 {model?.named && <span className="composer-model-id visually-hidden">{metadata?.model}</span>}
                 {/* no level recorded: nothing is drawn for it, no dot and no dash; the sentence is still read */}
@@ -1515,24 +1545,6 @@ export function Composer({
           )}
         </div>
       </div>
-      {/* the strip tucked under the card (t3code's composer context strip): the pane's working folder and its
-          branch, each drawn only when the caller passes it. It only names them; nothing in it is pressed */}
-      {strip !== null && (
-        <div ref={stripRef} className="composer-strip">
-          {strip.folder !== null && <span className="composer-strip-item composer-strip-folder" title={strip.path ?? undefined}>
-            {worktree ? <FolderGit2 aria-hidden="true" /> : <Folder aria-hidden="true" />}
-            <span className="visually-hidden">{t("Working folder")}: </span>
-            <span className="composer-strip-text composer-strip-folder-name">{strip.folder}</span>
-            {strip.path !== null && <span className="composer-strip-text composer-strip-path">{strip.path}</span>}
-            {worktree && <span className="composer-strip-kind">{t("Worktree")}</span>}
-          </span>}
-          {strip.branch !== null && <span className="composer-strip-item composer-strip-branch" title={strip.branch}>
-            <GitBranch aria-hidden="true" />
-            <span className="visually-hidden">{t("Branch")}: </span>
-            <span className="composer-strip-text">{strip.branch}</span>
-          </span>}
-        </div>
-      )}
       {/* above the whole composer: inside the surface it would cover the text being dictated */}
       {dictation.shown && <VoiceRecordingPill dictation={dictation} align="start" />}
     </div>

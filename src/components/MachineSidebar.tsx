@@ -10,6 +10,7 @@ import { keepDismissed, noticeKey, readDismissed, waitingMachines, writeDismisse
 import type { AppActions } from "../lib/actions.ts";
 import { Sidebar } from "./Sidebar.tsx";
 import { MachineHeader, useMachineFold } from "./MachineHeader.tsx";
+import { MachineStats } from "./MachineStats.tsx";
 import { AgentSidebar } from "./AgentSidebar.tsx";
 import { SidebarSplit } from "./SidebarSplit.tsx";
 import { storedSidebarSplit, storeSidebarSplit, type SplitFold, type SplitOrder } from "../lib/sidebarSplit.ts";
@@ -28,7 +29,7 @@ import "./Machines.css";
 import "./SidebarSections.css";
 import { t, useT } from "../lib/i18n.ts";
 import { asksChoice, FoundHerdrChoices } from "./FoundHerdrChoices.tsx";
-import { useSettings } from "../lib/settings.ts";
+import { pcLoadOn, useSettings } from "../lib/settings.ts";
 import { useAnnouncedText } from "../lib/useAnnouncedText.ts";
 import { machineErrorText, saysHerdrAway, sshFailure } from "../lib/userError.ts";
 import { useMediaQuery } from "../lib/useMediaQuery.ts";
@@ -361,7 +362,8 @@ export function manageActions(machine: Pick<Machine, "kind" | "herdr_profile_id"
 
 function MachineGroup({ machine, headerless = false, canHide, onHide, ...props }: Props & { machine: Machine; headerless?: boolean; canHide: boolean; onHide(): void }) {
   const t = useT();
-  const compact = useSettings().settings.sidebarRows === "one";
+  const { settings } = useSettings();
+  const compact = settings.sidebarRows === "one";
   const drawer = useMediaQuery(DRAWER_QUERY);
   const sheet = useMediaQuery(SHEET_QUERY);
   const [collapsed, toggleCollapsed] = useMachineFold(machine.id);
@@ -488,6 +490,8 @@ function MachineGroup({ machine, headerless = false, canHide, onHide, ...props }
     {/* C3 pin 2 (#16): the hosted app's own PC, new in the account: its tag and one-tap removal on the row itself */}
     {machine.kind === "local" && <NewPcRowTag serverId={machine.server_id ?? undefined} />}
     {noticed && <MachineActionNotice machine={machine} onSetup={props.onSetup} />}
+    {/* the PC's CPU, memory and fullest disk under its row (the bottom status bar used to carry this line) */}
+    {!folded && <MachineStats machine={machine} active={online && current && pcLoadOn(settings, [machine])} />}
     {away !== null && !quiet ? <MachineOffLine state={away === "off" ? "off" : "unreachable"} reason={awayReason} title={awayReason ?? machineErrorText(machine.error!, t)} checking={recheck.checking} failure={recheck.failure} onCheck={props.watching || machine.kind === "relay" ? undefined : recheck.check} returnFocus={() => titleButton.current} />
     : quiet ? <p className="machine-state visually-hidden" role="status">{online ? null : dotWords}</p>
     : <p className={`machine-state is-${machine.state}${online || stateWord === null ? " visually-hidden" : ""}`} role={machine.state === "error" ? "alert" : "status"} title={noticed || machine.error === null ? undefined : machineErrorText(machine.error, t)}>

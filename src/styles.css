@@ -316,7 +316,6 @@
   --tab-min-w: 120px;
   --tab-max-w: 220px;
   --tab-more-w: 52px;
-  --status-bar-h: 28px;
   --pane-bar-h: 30px;
   --split-hit-w: 8px;
   --menu-w-sm: 208px;
@@ -2822,14 +2821,6 @@ button {
   animation: pulse var(--dur-pulse) var(--ease-pulse) infinite;
 }
 
-.status-bar .status-bar-conn.is-lost {
-  color: var(--status-reconnecting);
-}
-
-.status-bar .status-bar-conn.is-lost .status-bar-dot {
-  background: var(--status-reconnecting);
-}
-
 .conn.conn-quiet {
   position: absolute;
   width: 1px;
@@ -3960,7 +3951,6 @@ button {
   background: var(--switch-thumb-on);
 }
 
-.status-bar,
 .context-session,
 time {
   font-variant-numeric: var(--font-numeric);

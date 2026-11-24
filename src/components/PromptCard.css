@@ -654,7 +654,7 @@
   .prompt-card { max-height: max(calc((var(--app-height, 100dvh) - var(--control-h)) * 0.6 - var(--prompt-card-strip)), calc(var(--touch-target) * 6)); }
 }
 
-.prompt-dock:has(~ .composer > .composer-strip) > .prompt-card {
+.prompt-dock:has(~ .composer .composer-strip) > .prompt-card {
   --prompt-card-strip: calc(var(--chip-h) + var(--space-5) + var(--space-1) + var(--hairline) - var(--space-4));
 }
 

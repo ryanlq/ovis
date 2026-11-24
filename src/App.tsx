@@ -68,7 +68,7 @@ import { lastViewedPane } from "./lib/lastViewedPane.ts";
 import { currentSidebarPins, movedSidebarPins, pinnedWorkspaceIds, sidebarPinKey } from "./lib/sidebarPins.ts";
 import { liveGroupKeys, movedAgentGroup } from "./lib/namedAgentGroups.ts";
 import { ReorderContext } from "./lib/machineContext.tsx";
-import { pcLoadOn, phoneInboxOn, useSettings } from "./lib/settings.ts";
+import { phoneInboxOn, useSettings } from "./lib/settings.ts";
 import { usePaneLocked } from "./lib/paneLocks.ts";
 import { useHiddenMachines, useShownMachines } from "./lib/hiddenMachines.ts";
 import { formatKeys, shortcutDisplayKeys, useShortcuts } from "./lib/shortcuts.ts";
@@ -135,9 +135,7 @@ import { useConnectionChip, useServerMessageHandler } from "./lib/useConnectionC
 import { connectionWord, useHeaderConnection, type HeaderConnection } from "./lib/headerConnection.ts";
 import { useRestoreHeld } from "./lib/pageRestore.ts";
 import { ConnectionRouteMark } from "./components/ConnectionRouteMark.tsx";
-import { StatusBar } from "./components/StatusBar.tsx";
 import { LensToggle } from "./components/LensToggle.tsx";
-import { PcLoadStatus } from "./components/MachineStats.tsx";
 import logoDark from "./assets/brand/logo-dark.png";
 import logoLight from "./assets/brand/logo-light.png";
 import { nextWaitingTarget, sessionCountsAcross, tabPosition, useDrawerDialog, useWaitingRosters, waitingElsewhere, waitingTargets } from "./lib/headerSessions.ts";
@@ -898,10 +896,8 @@ export function App() {
   const workspaceTabCount = selectedPane ? snapshot?.tabs.filter((tab) => tab.workspace_id === selectedPane.workspace_id).length ?? 0 : 0;
   const classicStripInHeader = (wideScreen ? !splitOn && !tabsInHeader : tabsInHeader) && !guideShown && snapshot !== null && selectedPane !== null && selectedWorkspace !== null;
   const stripInHeader = classicStripInHeader && !inMode;
-  // from 769px with a mouse the pane column ends in the Herdr app's status bar: where the pane is, its branch,
-  // the connection.
-  const statusBarShown = wideScreen && keyboardLikely && selectedPane !== null && crumb !== null && !guideShown && !inMode;
-  const waitingDot = waitingInMore && !statusBarShown && !inboxWide;
+  // where the pane is and its branch live in the composer strip and the header's More sheet: no bottom bar
+  const waitingDot = waitingInMore && !inboxWide;
   const openNewOn = (id: string): void => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); };
   const threadDrawn = inMode && !inbox.shown;
   const paneSplit = splitOn && !threadDrawn;
@@ -1074,7 +1070,7 @@ export function App() {
               </button>}
             </div>
             <div className={`context-sub${headerConnection === null ? "" : ` context-connection is-${headerConnection}`}`}>
-              {viewOnly(selectedMachineId) && !statusBarShown && <><span className="context-watch">{t("View only")}</span><span className="context-sep" aria-hidden="true">·</span></>}
+              {viewOnly(selectedMachineId) && <><span className="context-watch">{t("View only")}</span><span className="context-sep" aria-hidden="true">·</span></>}
               {headerConnection !== null ? <span>{connectionWord(headerConnection, t)}</span> : <>
                 {crumb.showMachine && <><span className="machine-context-name">{crumb.machine}</span><span className="context-sep" aria-hidden="true">›</span></>}
                 <span>{crumb.workspace}</span>
@@ -1126,7 +1122,7 @@ export function App() {
           {!guideShown && !inbox.shown && <ConnectionChip
             connected={chipConnected}
             word={connWord}
-            quiet={((headerConnection === "reconnecting" || headerConnection === "failed") && note === null && ((crumb !== null && !stripInHeader) || (phoneTabRow && stripInHeader))) || statusBarShown}
+            quiet={(headerConnection === "reconnecting" || headerConnection === "failed") && note === null && ((crumb !== null && !stripInHeader) || (phoneTabRow && stripInHeader))}
             title={[chipConnected ? null : connWord, shownHerdr ? (shownHerdr.runtime === "herdr-core" ? t("herdr-core {version} · protocol {protocol}", { version: shownHerdr.version, protocol: shownHerdr.protocol }) : t("herdr {version} · protocol {protocol}", { version: shownHerdr.version, protocol: shownHerdr.protocol })) : null].filter((part) => part !== null).join(" · ") || undefined}
           />}
           {selectedMachineId !== "local"
@@ -1145,9 +1141,9 @@ export function App() {
             title={t("More")}
             header={crumb && !inbox.shown && !(inMode && moreOnList) ? (
               <div className={`header-more-crumb${inMode ? " is-inbox" : ""}`}>
-                {!statusBarShown && selectedTitle !== null && <span className="header-more-title">{selectedAgent ? `${agentName(selectedAgent)} · ${selectedTitle}` : selectedTitle}</span>}
-                {!statusBarShown && <span>{currentTabName ? `${crumb.place} › ${currentTabName}` : crumb.place}</span>}
-                {!statusBarShown && crumb.path !== null && <span className="header-more-path">{crumb.path}</span>}
+                {selectedTitle !== null && <span className="header-more-title">{selectedAgent ? `${agentName(selectedAgent)} · ${selectedTitle}` : selectedTitle}</span>}
+                <span>{currentTabName ? `${crumb.place} › ${currentTabName}` : crumb.place}</span>
+                {crumb.path !== null && <span className="header-more-path">{crumb.path}</span>}
                 {sessionLines !== null && <span className="header-more-session">
                   <span>{sessionLines.totals}</span>
                   {sessionLines.goal !== null && <span>{sessionLines.goal}</span>}
@@ -1380,14 +1376,6 @@ export function App() {
           {dividers.length > 0 && !inMode && <SplitDividers dividers={dividers} areaRef={paneAreaRef} onResize={resizeDivider} />}
           <SplitDropPreview visible={!inMode && splitDragOn && (paneDragging || (tabDrag !== null && !tabDrag.workspaceTarget))} grid={gridPreview} />
         </div>}
-        {statusBarShown && selectedPane && crumb && <StatusBar machineId={selectedMachineId} workspaceId={selectedPane.workspace_id}
-          machine={crumb.machine} place={crumb.folder === null ? crumb.workspace : `${crumb.workspace} › ${crumb.folder}`} path={crumb.path}
-          session={sessionShort.length > 0 ? sessionShort.join(" · ") : null}
-          pcLoad={pcLoadOn(settings, machines) ? <PcLoadStatus key={selectedMachine?.id ?? ""} machine={selectedMachine ?? null} /> : null}
-          watching={viewOnly(selectedMachineId)}
-          waiting={sessionTally.waiting} onNextWaiting={nextWaiting === null ? null : openNextWaiting}
-          connection={headerConnection ?? (chipConnected ? "live" : "lost")}
-          connectionWord={headerConnection === "reconnecting" || headerConnection === "failed" ? connectionWord(headerConnection, t) : chipConnected ? t("Connected") : connWord} />}
         </div>
         </WebPanelContext.Provider>
         </OpenFileContext.Provider>

@@ -155,6 +155,7 @@
   grid-template-areas:
     "attachments attachments attachments"
     "text text text"
+    "strip strip strip"
     "status status status"
     "left . right";
 }
@@ -230,6 +231,31 @@
   font-weight: var(--fw-medium);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* the model's name as the way into the agent's own `/model` dialog: a button that looks like the text it replaces */
+.composer-model.is-switch {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.composer-model.is-switch:focus-visible {
+  outline: var(--ring);
+  outline-offset: var(--ring-offset);
+  border-radius: var(--radius-xs);
+}
+
+@media (hover: hover) {
+  .composer-model.is-switch:hover {
+    color: var(--accent);
+  }
 }
 
 .composer-model.is-id {
@@ -384,6 +410,7 @@
   grid-template-areas:
     "attachments attachments attachments"
     "text text text"
+    "strip strip strip"
     "left status right";
   background: var(--bg-elevated);
   border: var(--hairline) solid var(--border);
@@ -609,19 +636,12 @@
 }
 
 .composer-strip {
-  --composer-strip-inset: max(var(--radius-2xl), var(--space-5));
-  position: relative;
+  grid-area: strip;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  width: calc(min(100%, var(--chat-w)) - 2 * var(--composer-strip-inset));
-  margin: calc(-1 * var(--space-4)) auto 0;
-  padding: var(--space-5) var(--space-3) var(--space-1);
-  border: var(--hairline) solid var(--border);
-  border-top: 0;
-  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
-  background: var(--bg-elevated);
+  padding: 0 var(--space-3);
   color: var(--text-dim);
   font-size: var(--fs-xs);
 }

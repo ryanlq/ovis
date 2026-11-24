@@ -53,31 +53,6 @@ function spoken(t: Translate, report: SystemReport): string {
   ].join(", ");
 }
 
-export function formatPcLoad(t: Translate, report: SystemReport): string | null {
-  const disk = fullestDisk(report.disks);
-  const parts = [
-    ...(report.cpu_percent !== null ? [t("CPU {value}", { value: formatPercentValue(report.cpu_percent) })] : []),
-    ...(report.memory ? [t("Memory {value}", { value: formatPercentValue(report.memory.percent) })] : []),
-    ...(disk ? [t("Disk {value}", { value: formatPercentValue(disk.percent) })] : []),
-  ];
-  return parts.length > 0 ? parts.join(" · ") : null;
-}
-
-/**
- * Asks only while `active` (lib/system.ts), and draws nothing for a herdr-core PC (whose server runs
- * on this PC and cannot read that machine's load: server/system-stats.ts) or a PC that cannot say.
- */
-export function PcLoadStatus({ machine, active = true }: { machine: Machine | null; active?: boolean }) {
-  const t = useT();
-  const enabled = active && machine !== null && machine.state === "connected" && machine.kind !== "hc";
-  const retryKey = machine ? `${machine.state}:${machine.source_boot_id ?? ""}:${machine.herdr?.version ?? ""}` : "";
-  const { report, unavailable } = useSystemStats(machine?.id ?? "local", enabled, retryKey);
-  if (!enabled || unavailable || report === null) return null;
-  const line = formatPcLoad(t, report);
-  if (line === null) return null;
-  return <span className="status-bar-item status-bar-text status-bar-load">{line}</span>;
-}
-
 export function MachineStats({ machine, active }: { machine: Machine; active: boolean }) {
   const t = useT();
   const id = useId();
@@ -104,7 +79,7 @@ export function MachineStats({ machine, active }: { machine: Machine; active: bo
 export function PcLoadSetting({ machines }: { machines: readonly Machine[] }) {
   const t = useT();
   const { settings, update } = useSettings();
-  return <SettingsRow label={t("PC load in the status bar")} description={t("The selected PC's CPU, memory and fullest disk in the status bar, on this device only.")}>
-    <Toggle label={t("PC load in the status bar")} checked={pcLoadOn(settings, machines)} onChange={(pcLoad) => update({ pcLoad })} />
+  return <SettingsRow label={t("PC load in the sidebar")} description={t("The selected PC's CPU, memory and fullest disk under its row in the sidebar, on this device only.")}>
+    <Toggle label={t("PC load in the sidebar")} checked={pcLoadOn(settings, machines)} onChange={(pcLoad) => update({ pcLoad })} />
   </SettingsRow>;
 }
