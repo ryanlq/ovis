@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebglAddon } from "@xterm/addon-webgl";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { HerdrSocket, markTyped } from "./ws.ts";
 import { sendInOrder } from "./sendInOrder.ts";
@@ -271,6 +272,15 @@ export function useTerminalMount(deps: TerminalMountDeps): void {
       const offLinkKey = (): void => bareLinks.reset();
       term.registerLinkProvider(terminalFileLinkProvider(() => term.buffer.active, (path, event) => { if (linkPressed(event)) openFileRef.current?.(path); }, bareLinks));
       term.open(host);
+      // The DOM renderer lays out every cell it touches; on an output storm that layout is the whole
+      // frame budget, and a remote pane over WAN turns each dropped frame into visible hitching. WebGL
+      // draws the grid in passes instead. Where WebGL2 is missing (older iOS) the loadAddon throws and
+      // the DOM renderer stays; a context lost mid-session is disposed, which falls back to it too.
+      try {
+        const webgl = new WebglAddon();
+        webgl.onContextLoss(() => { webgl.dispose(); });
+        term.loadAddon(webgl);
+      } catch { /* the DOM renderer stays */ }
       // xterm turns autocorrect, autocapitalize and spellcheck off on its helper textarea; an Android
       // keyboard still shows its word strip there unless the field also says autocomplete="off",
       // the one attribute Chrome turns into the keyboard's NO_SUGGESTIONS
